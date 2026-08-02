@@ -1,0 +1,24 @@
+# Local/CI-only build overlay. Production uses compose.yml by itself
+# and pulls the prebuilt images configured in .env.
+services:
+  otel-collector:
+    pull_policy: build
+    build:
+      context: ./healthcheck
+      args:
+        BASE_IMAGE: otel/opentelemetry-collector-contrib:0.157.0
+
+  victorialogs:
+    pull_policy: build
+    build:
+      context: ./healthcheck
+      args:
+        BASE_IMAGE: victoriametrics/victoria-logs:v1.52.0
+
+  grafana:
+    pull_policy: build
+    build:
+      context: ./grafana
+      args:
+        GRAFANA_IMAGE: grafana/grafana:13.1.0
+        VICTORIALOGS_PLUGIN_VERSION: 0.27.1

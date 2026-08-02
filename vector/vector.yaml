@@ -1,0 +1,173 @@
+data_dir: /var/lib/vector
+
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+
+sources:
+  labelled_docker_logs:
+    type: docker_logs
+    docker_host: unix:///var/run/docker.sock
+    include_labels:
+      - logging.enabled=true
+    auto_partial_merge: true
+    retry_backoff_secs: 2
+
+transforms:
+  normalize_application_logs:
+    type: remap
+    inputs:
+      - labelled_docker_logs
+    drop_on_error: false
+    reroute_dropped: false
+    source: |-
+      original_container_id = .container_id
+      original_container_name = .container_name
+      original_host = .host
+      original_source_type = .source_type
+      label_service = get(.label, ["logging.service"]) ?? null
+      label_environment = get(.label, ["logging.environment"]) ?? null
+      raw_message = to_string(.message) ?? encode_json(.message)
+
+      parsed, parse_error = parse_json(raw_message)
+      if parse_error == null && is_object(parsed) {
+        . = merge!(., parsed, deep: true)
+      } else {
+        .message = raw_message
+      }
+
+      if is_null(label_service) {
+        label_service = "unknown-service"
+      }
+      if is_null(label_environment) {
+        label_environment = "unknown"
+      }
+      if !exists(.service_name) || is_null(.service_name) {
+        .service_name = label_service
+      }
+      if !exists(.environment) || is_null(.environment) {
+        .environment = label_environment
+      }
+      if !exists(.host_name) || is_null(.host_name) {
+        .host_name = original_host
+      }
+      .container_name = original_container_name
+      .container_id = original_container_id
+      .source_type = original_source_type
+
+      message = to_string(.message) ?? encode_json(.message)
+      message = replace(message, r'(?i)(password|passwd|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;]+', "REDACTED")
+      .message = truncate(message, 65536)
+
+      if exists(.exception) {
+        exception = to_string(.exception) ?? encode_json(.exception)
+        exception = replace(exception, r'(?i)(password|passwd|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;]+', "REDACTED")
+        .exception = truncate(exception, 131072)
+      }
+
+      del(.label)
+      del(.image)
+      del(.container_created_at)
+      del(.stream)
+      del(.host)
+
+  build_otlp_envelope:
+    type: remap
+    inputs:
+      - normalize_application_logs
+    drop_on_error: false
+    reroute_dropped: false
+    source: |-
+      timestamp_text = to_string(.timestamp) ?? format_timestamp!(now(), format: "%+")
+      event_timestamp = parse_timestamp(timestamp_text, format: "%+") ?? now()
+      level = upcase(to_string(.level) ?? "INFO")
+      severity_number = if level == "ERROR" {
+        17
+      } else if level == "WARN" {
+        13
+      } else if level == "DEBUG" {
+        5
+      } else if level == "TRACE" {
+        1
+      } else {
+        9
+      }
+
+      service_name = to_string(.service_name) ?? "unknown-service"
+      environment = to_string(.environment) ?? "unknown"
+      server_id = to_string(.server_id) ?? "unknown"
+      logger_name = to_string(.logger_name) ?? "unknown"
+
+      attributes = [
+        { "key": "service_name", "value": { "stringValue": service_name } },
+        { "key": "environment", "value": { "stringValue": environment } },
+        { "key": "server_id", "value": { "stringValue": server_id } },
+        { "key": "level", "value": { "stringValue": level } },
+        { "key": "trace_id", "value": { "stringValue": to_string(.trace_id) ?? "" } },
+        { "key": "player_id", "value": { "stringValue": to_string(.player_id) ?? "" } },
+        { "key": "user_id", "value": { "stringValue": to_string(.user_id) ?? "" } },
+        { "key": "command", "value": { "stringValue": to_string(.command) ?? "" } },
+        { "key": "event_name", "value": { "stringValue": to_string(.event_name) ?? "" } },
+        { "key": "duration_ms", "value": { "stringValue": to_string(.duration_ms) ?? "" } },
+        { "key": "logger_name", "value": { "stringValue": logger_name } },
+        { "key": "thread_name", "value": { "stringValue": to_string(.thread_name) ?? "" } },
+        { "key": "exception", "value": { "stringValue": to_string(.exception) ?? "" } },
+        { "key": "host_name", "value": { "stringValue": to_string(.host_name) ?? "" } },
+        { "key": "container_name", "value": { "stringValue": to_string(.container_name) ?? "" } },
+        { "key": "container_id", "value": { "stringValue": to_string(.container_id) ?? "" } },
+        { "key": "source_type", "value": { "stringValue": to_string(.source_type) ?? "" } }
+      ]
+
+      . = {
+        "resourceLogs": [{
+          "resource": {
+            "attributes": [
+              { "key": "service.name", "value": { "stringValue": service_name } },
+              { "key": "deployment.environment.name", "value": { "stringValue": environment } },
+              { "key": "server.id", "value": { "stringValue": server_id } }
+            ]
+          },
+          "scopeLogs": [{
+            "scope": { "name": logger_name },
+            "logRecords": [{
+              "timeUnixNano": to_unix_timestamp!(event_timestamp, unit: "nanoseconds"),
+              "observedTimeUnixNano": to_unix_timestamp!(now(), unit: "nanoseconds"),
+              "severityNumber": severity_number,
+              "severityText": level,
+              "body": { "stringValue": to_string(.message) ?? "" },
+              "attributes": attributes
+            }]
+          }]
+        }]
+      }
+
+sinks:
+  otel_collector:
+    type: opentelemetry
+    inputs:
+      - build_otlp_envelope
+    protocol:
+      type: http
+      uri: http://otel-collector:4318/v1/logs
+      method: post
+      compression: gzip
+      encoding:
+        codec: otlp
+      batch:
+        max_events: 512
+        max_bytes: 4194304
+        timeout_secs: 2
+      request:
+        concurrency: 2
+        timeout_secs: 10
+        retry_attempts: 100
+        retry_initial_backoff_secs: 1
+        retry_max_duration_secs: 30
+      retry_strategy:
+        type: default
+    buffer:
+      type: disk
+      max_size: 1073741824
+      when_full: drop_newest
+    healthcheck:
+      enabled: true

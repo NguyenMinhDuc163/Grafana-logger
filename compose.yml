@@ -1,0 +1,129 @@
+name: central-logging
+
+x-container-logging: &container-logging
+  driver: local
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+services:
+  vector:
+    image: timberio/vector:0.57.0-debian
+    command: ["--config", "/etc/vector/vector.yaml"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./vector/vector.yaml:/etc/vector/vector.yaml:ro
+      - vector-data:/var/lib/vector
+    networks:
+      - observability
+    depends_on:
+      otel-collector:
+        condition: service_healthy
+    restart: unless-stopped
+    cpus: 0.25
+    mem_limit: ${VECTOR_MEMORY_LIMIT:-192m}
+    mem_reservation: 64m
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "vector", "validate", "--no-environment", "/etc/vector/vector.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging: *container-logging
+
+  otel-collector:
+    image: ${OTEL_COLLECTOR_IMAGE:-nguyenduc1603/central-logging:otel-latest}
+    # image: nguyenduc1603/central-logging:otel-v123
+    pull_policy: always
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    networks:
+      - observability
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+    restart: unless-stopped
+    cpus: 0.50
+    mem_limit: ${OTEL_MEMORY_LIMIT:-384m}
+    mem_reservation: 128m
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "/busybox", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:13133/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *container-logging
+
+  victorialogs:
+    image: ${VICTORIALOGS_IMAGE:-nguyenduc1603/central-logging:victorialogs-latest}
+    # image: nguyenduc1603/central-logging:victorialogs-v123
+    pull_policy: always
+    command:
+      - -storageDataPath=/victoria-logs-data
+      - -retentionPeriod=${LOG_RETENTION:-14d}
+      - -search.maxQueryDuration=30s
+      - -search.maxConcurrentRequests=4
+      - -search.maxQueueDuration=10s
+    volumes:
+      - victorialogs-data:/victoria-logs-data
+    networks:
+      - observability
+    restart: unless-stopped
+    cpus: 1.00
+    mem_limit: ${VICTORIALOGS_MEMORY_LIMIT:-1g}
+    mem_reservation: 256m
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD", "/busybox", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9428/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *container-logging
+
+  grafana:
+    image: ${GRAFANA_LOGGING_IMAGE:-nguyenduc1603/central-logging:grafana-latest}
+    # image: nguyenduc1603/central-logging:grafana-v123
+    pull_policy: always
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Set GRAFANA_ADMIN_USER in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_LOG_LEVEL: info
+    ports:
+      - "${GRAFANA_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    networks:
+      - observability
+    depends_on:
+      victorialogs:
+        condition: service_healthy
+    restart: unless-stopped
+    cpus: 0.50
+    mem_limit: ${GRAFANA_MEMORY_LIMIT:-384m}
+    mem_reservation: 128m
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging: *container-logging
+
+networks:
+  observability:
+    driver: bridge
+
+volumes:
+  victorialogs-data:
+  grafana-data:
+  vector-data:

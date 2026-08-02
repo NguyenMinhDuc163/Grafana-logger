@@ -1,0 +1,153 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] } }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id level:$level player_id:$player_id trace_id:$trace_id command:$command | stats count() total_logs", "queryType": "stats", "refId": "A" }],
+      "title": "Total logs",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "red", "mode": "fixed" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command level:in(\"ERROR\",\"error\") | stats count() errors", "queryType": "stats", "refId": "A" }],
+      "title": "ERROR logs",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "orange", "mode": "fixed" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 1 }] } }, "overrides": [] },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command level:in(\"WARN\",\"warn\") | stats count() warnings", "queryType": "stats", "refId": "A" }],
+      "title": "WARN logs",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "Errors %", "axisPlacement": "auto", "drawStyle": "line", "fillOpacity": 20, "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5, "showPoints": "never", "spanNulls": false, "stacking": { "group": "A", "mode": "none" } }, "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 4,
+      "options": { "legend": { "calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command | stats count() if (level:in(\"ERROR\",\"error\")) errors, count() total | math 100 * errors / total as error_rate | fields error_rate", "legendFormat": "Error rate", "queryType": "statsRange", "refId": "A" }],
+      "title": "Error rate over time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "custom": { "axisCenteredZero": false, "axisColorMode": "text", "axisPlacement": "auto", "fillOpacity": 70, "lineWidth": 1 }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "options": { "barRadius": 0, "barWidth": 0.8, "fullHighlight": false, "groupWidth": 0.7, "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "orientation": "auto", "showValue": "auto", "stacking": "none", "tooltip": { "mode": "single", "sort": "none" }, "xTickLabelRotation": 0, "xTickLabelSpacing": 0 },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id level:$level player_id:$player_id trace_id:$trace_id command:$command | stats by (level) count() logs | sort by (logs desc)", "queryType": "stats", "refId": "A" }],
+      "title": "Logs by level",
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
+      "id": 6,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command level:in(\"ERROR\",\"error\") | stats by (logger_name) count() errors | sort by (errors desc) | limit 10", "queryType": "stats", "refId": "A" }],
+      "title": "Top error loggers",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 12 },
+      "id": 7,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command level:in(\"ERROR\",\"error\") | stats by (command) count() errors | sort by (errors desc) | limit 10", "queryType": "stats", "refId": "A" }],
+      "title": "Top error commands",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 12 },
+      "id": 8,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command level:in(\"ERROR\",\"error\") | stats by (player_id) count() errors | sort by (errors desc) | limit 10", "queryType": "stats", "refId": "A" }],
+      "title": "Top players in ERROR",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "id": 9,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command level:in(\"ERROR\",\"error\") exception:* | stats by (exception) count() errors | sort by (errors desc) | limit 10", "queryType": "stats", "refId": "A" }],
+      "title": "Top exceptions",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "id": 10,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id player_id:$player_id trace_id:$trace_id command:$command event_name:\"SLOW_PACKET\" | stats by (command) count() slow_packets, avg(duration_ms) avg_duration_ms | sort by (slow_packets desc) | limit 10", "queryType": "stats", "refId": "A" }],
+      "title": "Slow packets",
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 14, "w": 24, "x": 0, "y": 28 },
+      "id": 11,
+      "options": { "dedupStrategy": "none", "enableInfiniteScrolling": false, "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showControls": true, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "direction": "desc", "editorMode": "code", "expr": "environment:$environment service_name:$service_name server_id:$server_id level:$level player_id:$player_id trace_id:$trace_id command:$command | fields _time, level, service_name, server_id, trace_id, player_id, command, event_name, duration_ms, _msg, exception", "maxLines": 500, "queryType": "instant", "refId": "A" }],
+      "title": "Log explorer",
+      "type": "logs"
+    }
+  ],
+  "preload": false,
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": ["dragon-ball", "logs", "victorialogs"],
+  "templating": {
+    "list": [
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "definition": "environment", "includeAll": true, "label": "Environment", "multi": true, "name": "environment", "options": [], "query": { "field": "environment", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "regex": "", "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "definition": "service_name", "includeAll": true, "label": "Service", "multi": true, "name": "service_name", "options": [], "query": { "field": "service_name", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "regex": "", "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "definition": "server_id", "includeAll": true, "label": "Server", "multi": true, "name": "server_id", "options": [], "query": { "field": "server_id", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "regex": "", "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "definition": "level", "includeAll": true, "label": "Level", "multi": true, "name": "level", "options": [], "query": { "field": "level", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "regex": "", "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "definition": "player_id", "includeAll": true, "label": "Player", "multi": true, "name": "player_id", "options": [], "query": { "field": "player_id", "limit": 200, "query": "*", "type": "fieldValue" }, "refresh": 1, "regex": "", "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "definition": "trace_id", "includeAll": true, "label": "Trace", "multi": true, "name": "trace_id", "options": [], "query": { "field": "trace_id", "limit": 200, "query": "*", "type": "fieldValue" }, "refresh": 1, "regex": "", "sort": 0, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "definition": "command", "includeAll": true, "label": "Command", "multi": true, "name": "command", "options": [], "query": { "field": "command", "limit": 200, "query": "*", "type": "fieldValue" }, "refresh": 1, "regex": "", "sort": 1, "type": "query" }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m"] },
+  "timezone": "browser",
+  "title": "Dragon Ball Logs",
+  "uid": "dragon-ball-logs",
+  "version": 1,
+  "weekStart": ""
+}

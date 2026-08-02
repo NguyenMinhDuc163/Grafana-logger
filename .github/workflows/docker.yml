@@ -1,0 +1,99 @@
+name: Build and Push Central Logging Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "compose.yml"
+      - "compose.build.yml"
+      - "vector/**"
+      - "otel-collector/**"
+      - "healthcheck/**"
+      - "grafana/**"
+      - ".github/workflows/docker.yml"
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: nguyenduc1603/central-logging
+
+jobs:
+  build-and-push:
+    name: Build and Push (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: otel-collector
+            tag_prefix: otel
+            latest_tag: otel-latest
+            context: ./healthcheck
+            file: ./healthcheck/Dockerfile
+            build_args: |
+              BASE_IMAGE=otel/opentelemetry-collector-contrib:0.157.0
+          - component: victorialogs
+            tag_prefix: victorialogs
+            latest_tag: victorialogs-latest
+            context: ./healthcheck
+            file: ./healthcheck/Dockerfile
+            build_args: |
+              BASE_IMAGE=victoriametrics/victoria-logs:v1.52.0
+          - component: grafana
+            tag_prefix: grafana
+            latest_tag: grafana-latest
+            context: ./grafana
+            file: ./grafana/Dockerfile
+            build_args: |
+              GRAFANA_IMAGE=grafana/grafana:13.1.0
+              VICTORIALOGS_PLUGIN_VERSION=0.27.1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.component }}
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          build-args: ${{ matrix.build_args }}
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:${{ matrix.latest_tag }}
+            ${{ env.DOCKER_IMAGE }}:${{ matrix.tag_prefix }}-v${{ github.run_number }}
+          cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:${{ matrix.component }}-buildcache
+          cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:${{ matrix.component }}-buildcache,mode=max
+
+      - name: Save image metadata
+        shell: bash
+        run: |
+          mkdir -p docker-image-metadata
+          {
+            echo "component=${{ matrix.component }}"
+            echo "image=${DOCKER_IMAGE}"
+            echo "latest=${DOCKER_IMAGE}:${{ matrix.latest_tag }}"
+            echo "version=${{ matrix.tag_prefix }}-v${GITHUB_RUN_NUMBER}"
+            echo "tag=${DOCKER_IMAGE}:${{ matrix.tag_prefix }}-v${GITHUB_RUN_NUMBER}"
+            echo "digest=${{ steps.build.outputs.digest }}"
+            echo "commit=${GITHUB_SHA}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_number=${GITHUB_RUN_NUMBER}"
+          } > "docker-image-metadata/${{ matrix.component }}.txt"
+
+      - name: Upload image metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-metadata-${{ matrix.component }}-${{ github.run_number }}
+          path: docker-image-metadata/${{ matrix.component }}.txt
+          retention-days: 30

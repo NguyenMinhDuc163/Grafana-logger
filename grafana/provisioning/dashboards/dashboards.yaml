@@ -1,0 +1,14 @@
+apiVersion: 1
+
+providers:
+  - name: Dragon Ball Observability
+    orgId: 1
+    folder: Dragon Ball
+    folderUid: dragon-ball
+    type: file
+    disableDeletion: true
+    allowUiUpdates: true
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false
