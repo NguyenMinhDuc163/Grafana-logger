@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sơ đồ hệ thống Central Logging</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --surface: #0d1b2d;
+      --surface-2: #12243a;
+      --line: #29425f;
+      --text: #e7f0fa;
+      --muted: #9eb0c6;
+      --write: #38bdf8;
+      --query: #f59e0b;
+      --store: #a78bfa;
+      --success: #34d399;
+      --danger: #fb7185;
+      --shadow: 0 18px 50px rgb(0 0 0 / 26%);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 10% 0%, rgb(56 189 248 / 12%), transparent 30rem),
+        radial-gradient(circle at 90% 12%, rgb(167 139 250 / 10%), transparent 32rem),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button { font: inherit; }
+
+    .page {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 42px 28px 52px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--write);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4.25rem);
+      line-height: 1.02;
+      letter-spacing: -.045em;
+    }
+
+    .lead {
+      max-width: 850px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 1.6vw, 1.15rem);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 28px 0 18px;
+    }
+
+    .filter {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 9px 14px;
+      background: rgb(13 27 45 / 82%);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color .2s ease, color .2s ease, background .2s ease;
+    }
+
+    .filter:hover,
+    .filter:focus-visible {
+      border-color: var(--write);
+      color: var(--text);
+      outline: none;
+    }
+
+    .filter[aria-pressed="true"] {
+      border-color: var(--write);
+      background: rgb(56 189 248 / 14%);
+      color: var(--text);
+    }
+
+    .filter[data-flow="query"][aria-pressed="true"] {
+      border-color: var(--query);
+      background: rgb(245 158 11 / 14%);
+    }
+
+    .diagram-shell {
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgb(7 17 31 / 76%);
+      box-shadow: var(--shadow);
+    }
+
+    .host-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-width: 1220px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .83rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .host-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--success);
+      letter-spacing: normal;
+      text-transform: none;
+    }
+
+    .host-status::before {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+      box-shadow: 0 0 12px currentColor;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: 1.2fr 72px .9fr 72px 1fr 72px 1fr 72px 1fr 72px 1fr;
+      align-items: stretch;
+      min-width: 1220px;
+      padding: 26px 20px 30px;
+    }
+
+    .stage,
+    .apps {
+      position: relative;
+      min-height: 360px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(160deg, rgb(18 36 58 / 94%), rgb(10 24 40 / 96%));
+      transition: opacity .2s ease, border-color .2s ease, transform .2s ease;
+    }
+
+    .stage {
+      display: flex;
+      flex-direction: column;
+      padding: 18px;
+      cursor: pointer;
+    }
+
+    .stage:hover,
+    .stage:focus-visible,
+    .apps:hover,
+    .apps:focus-visible {
+      border-color: var(--write);
+      transform: translateY(-2px);
+      outline: none;
+    }
+
+    .stage.is-selected,
+    .apps.is-selected {
+      border-color: var(--success);
+      box-shadow: 0 0 0 2px rgb(52 211 153 / 12%);
+    }
+
+    .apps {
+      padding: 18px;
+    }
+
+    .stage-number {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border: 1px solid rgb(56 189 248 / 45%);
+      border-radius: 10px;
+      color: var(--write);
+      font-size: .78rem;
+      font-weight: 800;
+    }
+
+    .stage.store .stage-number { border-color: rgb(167 139 250 / 50%); color: var(--store); }
+    .stage.ui .stage-number { border-color: rgb(245 158 11 / 50%); color: var(--query); }
+
+    .stage h2,
+    .apps h2 {
+      margin: 14px 0 5px;
+      font-size: 1.08rem;
+      line-height: 1.2;
+    }
+
+    .stage-role {
+      min-height: 42px;
+      margin: 0;
+      color: var(--muted);
+      font-size: .83rem;
+    }
+
+    .tech-list {
+      display: grid;
+      gap: 8px;
+      margin: auto 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .tech-list li {
+      border-top: 1px solid rgb(41 66 95 / 70%);
+      padding-top: 8px;
+      color: #c8d6e7;
+      font-size: .78rem;
+    }
+
+    .app-list {
+      display: grid;
+      gap: 9px;
+      margin-top: 16px;
+    }
+
+    .app {
+      border: 1px solid rgb(41 66 95 / 85%);
+      border-radius: 12px;
+      padding: 10px 11px;
+      background: rgb(7 17 31 / 55%);
+    }
+
+    .app strong { display: block; font-size: .83rem; }
+    .app span { color: var(--muted); font-size: .72rem; }
+    .app.new { border-style: dashed; border-color: rgb(52 211 153 / 55%); }
+    .app.new strong { color: var(--success); }
+
+    .connector {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--write);
+      transition: opacity .2s ease;
+    }
+
+    .connector::before {
+      width: 100%;
+      height: 2px;
+      background: currentColor;
+      content: "";
+      opacity: .7;
+    }
+
+    .connector::after {
+      position: absolute;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-top: 6px solid transparent;
+      border-bottom: 6px solid transparent;
+      border-left: 9px solid currentColor;
+      content: "";
+    }
+
+    .connector span {
+      position: absolute;
+      top: calc(50% - 34px);
+      width: 98px;
+      padding: 3px 5px;
+      background: var(--bg);
+      color: var(--muted);
+      font-size: .67rem;
+      line-height: 1.25;
+      text-align: center;
+    }
+
+    .connector.query { color: var(--query); }
+    .connector.query::after { right: auto; left: 0; border-right: 9px solid currentColor; border-left: 0; }
+
+    [data-view="write"] .query-only { opacity: .16; }
+    [data-view="query"] .write-only { opacity: .16; }
+    [data-view="write"] .query-only.stage,
+    [data-view="query"] .write-only.stage { filter: grayscale(.65); }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .detail,
+    .contract {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 20px;
+      background: rgb(13 27 45 / 78%);
+    }
+
+    .detail h2,
+    .contract h2 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .detail p,
+    .contract p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .detail code,
+    .contract code {
+      color: #bde7ff;
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: .82em;
+    }
+
+    .requirements {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .requirement {
+      border: 1px solid rgb(52 211 153 / 28%);
+      border-radius: 12px;
+      padding: 12px;
+      background: rgb(52 211 153 / 6%);
+    }
+
+    .requirement strong { display: block; color: var(--success); font-size: .8rem; }
+    .requirement span { display: block; margin-top: 3px; color: var(--muted); font-size: .72rem; }
+
+    .not-required {
+      margin-top: 12px !important;
+      color: #b6c6d9 !important;
+    }
+
+    .not-required strong { color: var(--danger); }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 16px;
+      color: #72869e;
+      font-size: .75rem;
+    }
+
+    @media (max-width: 820px) {
+      .page { padding: 28px 16px 38px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .requirements { grid-template-columns: 1fr; }
+      .footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">Grafana Logger · Architecture Map</p>
+      <h1>Một đường ghi log.<br> Một đường truy vấn.</h1>
+      <p class="lead">
+        Ứng dụng chỉ ghi ra Docker. Hệ thống logging tự thu thập, chuẩn hóa, lưu trữ;
+        Grafana chỉ đọc dữ liệu khi người dùng tìm kiếm hoặc mở dashboard.
+      </p>
+    </header>
+
+    <nav class="toolbar" aria-label="Chọn luồng cần làm nổi bật">
+      <button class="filter" type="button" data-flow="all" aria-pressed="true">Toàn bộ hệ thống</button>
+      <button class="filter" type="button" data-flow="write" aria-pressed="false">Luồng ghi log →</button>
+      <button class="filter" type="button" data-flow="query" aria-pressed="false">← Luồng truy vấn</button>
+    </nav>
+
+    <section class="diagram-shell" id="diagram" data-view="all" aria-label="Sơ đồ topology Central Logging">
+      <div class="host-label">
+        <span>Cùng một Docker host</span>
+        <span class="host-status">Các thành phần logging độc lập với ứng dụng</span>
+      </div>
+
+      <div class="pipeline">
+        <article class="apps write-only" tabindex="0" data-key="apps" aria-label="Các ứng dụng Docker">
+          <span class="stage-number">01</span>
+          <h2>Ứng dụng Docker</h2>
+          <p class="stage-role">Ghi log ra stdout / stderr</p>
+          <div class="app-list">
+            <div class="app"><strong>Dragon Ball</strong><span>logging.service=dragon-ball-game</span></div>
+            <div class="app"><strong>Edtech BE</strong><span>logging.service=edtech-be</span></div>
+            <div class="app new"><strong>+ Service mới</strong><span>Chỉ cần thêm labels</span></div>
+          </div>
+        </article>
+
+        <div class="connector write-only" aria-label="stdout và stderr chuyển tới Docker Engine"><span>stdout<br>stderr</span></div>
+
+        <article class="stage write-only" tabindex="0" data-key="docker">
+          <span class="stage-number">02</span>
+          <h2>Docker Engine</h2>
+          <p class="stage-role">Giữ log container theo logging driver</p>
+          <ul class="tech-list">
+            <li>Lọc container bằng label</li>
+            <li>Socket chỉ mount read-only</li>
+            <li>Không cần chung Docker network</li>
+          </ul>
+        </article>
+
+        <div class="connector write-only" aria-label="Vector đọc qua Docker socket"><span>Docker socket<br>read-only</span></div>
+
+        <article class="stage write-only" tabindex="0" data-key="vector">
+          <span class="stage-number">03</span>
+          <h2>Vector</h2>
+          <p class="stage-role">Thu thập và chuẩn hóa log</p>
+          <ul class="tech-list">
+            <li>Parse JSON nếu có</li>
+            <li>Gắn service + environment</li>
+            <li>Redact secret, buffer đĩa 1 GiB</li>
+          </ul>
+        </article>
+
+        <div class="connector write-only" aria-label="Vector gửi OTLP HTTP"><span>OTLP HTTP<br>gzip · :4318</span></div>
+
+        <article class="stage write-only" tabindex="0" data-key="otel">
+          <span class="stage-number">04</span>
+          <h2>OTel Collector</h2>
+          <p class="stage-role">Kiểm soát và gom lô dữ liệu</p>
+          <ul class="tech-list">
+            <li>Memory limiter</li>
+            <li>Resource: central-logging</li>
+            <li>Batch + retry queue</li>
+          </ul>
+        </article>
+
+        <div class="connector write-only" aria-label="Collector ghi vào VictoriaLogs"><span>OTLP HTTP<br>/insert/...</span></div>
+
+        <article class="stage store" tabindex="0" data-key="victoria">
+          <span class="stage-number">05</span>
+          <h2>VictoriaLogs</h2>
+          <p class="stage-role">Lưu trữ và lập chỉ mục log</p>
+          <ul class="tech-list">
+            <li>Volume: victorialogs-data</li>
+            <li>Retention mặc định 14 ngày</li>
+            <li>Stream: service, env, server</li>
+          </ul>
+        </article>
+
+        <div class="connector query" aria-label="Grafana truy vấn VictoriaLogs"><span>LogsQL<br>HTTP · :9428</span></div>
+
+        <article class="stage ui query-only" tabindex="0" data-key="grafana">
+          <span class="stage-number">06</span>
+          <h2>Grafana + Người dùng</h2>
+          <p class="stage-role">Explore, dashboard và bộ lọc</p>
+          <ul class="tech-list">
+            <li>Datasource: VictoriaLogs</li>
+            <li>Dashboard tạo trực tiếp trên UI</li>
+            <li>Volume: grafana-data</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="detail-grid">
+      <article class="detail" aria-live="polite">
+        <h2 id="detail-title">Cách đọc sơ đồ</h2>
+        <p id="detail-copy">
+          Chọn một thành phần để xem nhiệm vụ của nó. Mũi tên xanh là đường log được ghi vào kho;
+          mũi tên vàng là truy vấn LogsQL từ Grafana quay về VictoriaLogs.
+        </p>
+      </article>
+
+      <article class="contract">
+        <h2>Hợp đồng để thêm service mới</h2>
+        <p>Mỗi service chỉ phải đáp ứng ba điều kiện:</p>
+        <div class="requirements">
+          <div class="requirement"><strong>1 · Cùng host</strong><span>Cùng Docker daemon với Vector</span></div>
+          <div class="requirement"><strong>2 · Có labels</strong><span>enabled, service, environment</span></div>
+          <div class="requirement"><strong>3 · Có output</strong><span>Ghi log ra stdout / stderr</span></div>
+        </div>
+        <p class="not-required"><strong>Không bắt buộc:</strong> JSON, sửa Grafana, sửa Vector hoặc tham gia mạng observability.</p>
+      </article>
+    </section>
+
+    <footer class="footer">
+      <span>Query mẫu: <code>service_name:="edtech-be"</code> · Type: Raw Logs</span>
+      <span>Nguồn sự thật: compose.yml, vector/vector.yaml, otel-collector/config.yaml</span>
+    </footer>
+  </main>
+
+  <script>
+    const diagram = document.querySelector('#diagram');
+    const filters = [...document.querySelectorAll('.filter')];
+    const nodes = [...document.querySelectorAll('[data-key]')];
+    const detailTitle = document.querySelector('#detail-title');
+    const detailCopy = document.querySelector('#detail-copy');
+
+    const details = {
+      apps: ['Ứng dụng Docker', 'Ứng dụng không gửi trực tiếp tới Grafana. Mỗi dòng stdout/stderr được Docker giữ lại; labels quyết định Vector có thu thập container đó hay không.'],
+      docker: ['Docker Engine', 'Docker là ranh giới tích hợp. Vector đọc API log qua /var/run/docker.sock ở chế độ read-only và chỉ chọn container có logging.enabled=true.'],
+      vector: ['Vector', 'Vector parse JSON khi có, giữ nguyên text khi không có, bổ sung service_name và environment từ labels, che chuỗi giống secret rồi gửi OTLP. Buffer đĩa giúp hấp thụ gián đoạn ngắn.'],
+      otel: ['OpenTelemetry Collector', 'Collector nhận OTLP HTTP/gRPC, giới hạn bộ nhớ, gắn pipeline.name=central-logging, gom batch và retry trước khi ghi sang VictoriaLogs.'],
+      victoria: ['VictoriaLogs', 'Kho log trung tâm nhận OTLP tại cổng nội bộ 9428. Dữ liệu nằm trong volume victorialogs-data và được xóa theo thời gian retention cấu hình.'],
+      grafana: ['Grafana + Người dùng', 'Grafana dùng datasource VictoriaLogs để chạy LogsQL. Dashboard tạo trên UI nằm trong grafana-data; Grafana không nhận hay lưu bản sao log của ứng dụng.']
+    };
+
+    filters.forEach((button) => {
+      button.addEventListener('click', () => {
+        const flow = button.dataset.flow;
+        diagram.dataset.view = flow;
+        filters.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+      });
+    });
+
+    function selectNode(node) {
+      nodes.forEach((item) => item.classList.toggle('is-selected', item === node));
+      const [title, copy] = details[node.dataset.key];
+      detailTitle.textContent = title;
+      detailCopy.textContent = copy;
+    }
+
+    nodes.forEach((node) => {
+      node.addEventListener('click', () => selectNode(node));
+      node.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          selectNode(node);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

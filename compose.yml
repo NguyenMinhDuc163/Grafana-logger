@@ -19,7 +19,7 @@ services:
     depends_on:
       otel-collector:
         condition: service_healthy
-    restart: unless-stopped
+    restart: "no"
     cpus: 0.25
     mem_limit: ${VECTOR_MEMORY_LIMIT:-192m}
     mem_reservation: 64m
@@ -44,7 +44,7 @@ services:
     depends_on:
       victorialogs:
         condition: service_healthy
-    restart: unless-stopped
+    restart: "no"
     cpus: 0.50
     mem_limit: ${OTEL_MEMORY_LIMIT:-384m}
     mem_reservation: 128m
@@ -71,7 +71,7 @@ services:
       - victorialogs-data:/victoria-logs-data
     networks:
       - observability
-    restart: unless-stopped
+    restart: "no"
     cpus: 1.00
     mem_limit: ${VICTORIALOGS_MEMORY_LIMIT:-1g}
     mem_reservation: 256m
@@ -106,7 +106,7 @@ services:
     depends_on:
       victorialogs:
         condition: service_healthy
-    restart: unless-stopped
+    restart: "no"
     cpus: 0.50
     mem_limit: ${GRAFANA_MEMORY_LIMIT:-384m}
     mem_reservation: 128m
