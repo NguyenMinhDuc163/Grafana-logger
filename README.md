@@ -181,4 +181,4 @@ the current OTLP ports; first add TLS, authentication, and network allow-listing
 - The Vector redaction rule is defense in depth, not a substitute for avoiding
   secret logging at the application boundary.
 - Database-backed currency, item, admin, gift-code, and account audit records
-  remain authoritative; VictoriaLogs is for technical investigation.
+  remain authoritative; VictoriaLogs is for technical investigation. 
