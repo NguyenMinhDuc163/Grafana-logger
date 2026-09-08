@@ -1,0 +1,25 @@
+name: grafana-logger-local-test
+
+services:
+  log-test:
+    image: alpine:3.22
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          echo '{"level":"info","message":"hello central logging","user_id":123}'
+          echo '{"timestamp":"2020-01-01T00:00:00Z","level":"warn","message":"custom timestamp test"}'
+          echo 'ERROR plain text test'
+          echo 'plain text without severity'
+          sleep 5
+        done
+    labels:
+      logging.enabled: "true"
+      logging.service: "log-test"
+      logging.environment: "local"
+    logging:
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "3"

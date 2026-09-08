@@ -19,7 +19,9 @@ services:
 
 Write logs to `stdout` or `stderr`. A JSON object on one line is preserved as
 structured fields (for example `level`, `request_id` or `player_id`); ordinary
-plain-text logs are kept as `message` too. Never log real credentials.
+plain-text logs are kept as `message` too. Levels are normalized to uppercase;
+plain text without a recognizable severity is stored as `UNKNOWN`. Never log
+real credentials.
 
 Check the labels and local fallback logs with:
 

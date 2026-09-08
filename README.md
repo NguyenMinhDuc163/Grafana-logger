@@ -79,3 +79,5 @@ datasource and filter with `host_name:="dev-server"` or
 `service_name:="nro-admin"`.
 
 See [docs/DEPLOY.md](docs/DEPLOY.md) for migration and network details.
+For a Docker Desktop smoke test before deployment, see
+[docs/LOCAL_TEST.md](docs/LOCAL_TEST.md).

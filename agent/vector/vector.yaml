@@ -23,16 +23,26 @@ transforms:
       original_container_id = .container_id
       original_container_name = .container_name
       original_source_type = .source_type
+      docker_timestamp = .timestamp
       label_service = get(.label, ["logging.service"]) ?? "unknown-service"
       label_environment = get(.label, ["logging.environment"]) ?? "unknown"
       raw_message = to_string(.message) ?? encode_json(.message)
 
       parsed, parse_error = parse_json(raw_message)
+      is_json_log = false
       if parse_error == null && is_object(parsed) {
+        is_json_log = true
+        if exists(parsed.timestamp) && !is_null(parsed.timestamp) {
+          .app_timestamp = parsed.timestamp
+        }
         . = merge!(., parsed, deep: true)
       } else {
         .message = raw_message
       }
+
+      # Docker's timestamp is the canonical ingestion time. Application JSON
+      # timestamps remain queryable separately and can never move a log in time.
+      .timestamp = docker_timestamp
 
       if !exists(.service_name) || is_null(.service_name) { .service_name = label_service }
       if !exists(.environment) || is_null(.environment) { .environment = label_environment }
@@ -43,6 +53,44 @@ transforms:
       .container_name = original_container_name
       .container_id = original_container_id
       .source_type = original_source_type
+
+      level_value = ""
+      if exists(.level) && !is_null(.level) {
+        level_value = downcase(to_string(.level) ?? "")
+      }
+
+      if level_value == "trace" {
+        .level = "TRACE"
+      } else if level_value == "debug" {
+        .level = "DEBUG"
+      } else if level_value == "info" || level_value == "information" {
+        .level = "INFO"
+      } else if level_value == "warn" || level_value == "warning" {
+        .level = "WARN"
+      } else if level_value == "error" || level_value == "err" {
+        .level = "ERROR"
+      } else if level_value == "fatal" {
+        .level = "FATAL"
+      } else if !is_json_log {
+        plain_text = upcase(raw_message)
+        if contains(plain_text, "FATAL") {
+          .level = "FATAL"
+        } else if contains(plain_text, "ERROR") || contains(plain_text, "ERR") {
+          .level = "ERROR"
+        } else if contains(plain_text, "WARNING") || contains(plain_text, "WARN") {
+          .level = "WARN"
+        } else if contains(plain_text, "DEBUG") {
+          .level = "DEBUG"
+        } else if contains(plain_text, "INFO") || contains(plain_text, "INFORMATION") {
+          .level = "INFO"
+        } else if contains(plain_text, "TRACE") {
+          .level = "TRACE"
+        } else {
+          .level = "UNKNOWN"
+        }
+      } else {
+        .level = "UNKNOWN"
+      }
 
       message = to_string(.message) ?? encode_json(.message)
       message = replace(message, r'(?i)(password|passwd|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;]+', "REDACTED")
