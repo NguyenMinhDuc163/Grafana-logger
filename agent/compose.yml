@@ -1,0 +1,32 @@
+name: logging-agent
+
+services:
+  vector:
+    image: timberio/vector:0.57.0-debian
+    command: ["--config", "/etc/vector/vector.yaml"]
+    environment:
+      HOST_NAME: ${HOST_NAME:?Set HOST_NAME in .env}
+      VICTORIALOGS_URL: ${VICTORIALOGS_URL:?Set VICTORIALOGS_URL in .env}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./vector/vector.yaml:/etc/vector/vector.yaml:ro
+      - vector-data:/var/lib/vector
+    restart: unless-stopped
+    cpus: 0.25
+    mem_limit: ${VECTOR_MEMORY_LIMIT:-192m}
+    mem_reservation: 64m
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD", "vector", "validate", "--no-environment", "/etc/vector/vector.yaml"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+volumes:
+  vector-data:

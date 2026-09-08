@@ -1,0 +1,61 @@
+{
+  "editable": true,
+  "panels": [
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 1 }, "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "targets": [{ "editorMode": "code", "expr": "host_name:$host_name environment:$environment service_name:$service_name level:$level | stats count() logs", "legendFormat": "Logs", "queryType": "statsRange", "refId": "A" }],
+      "title": "Log volume over time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+      "targets": [{ "editorMode": "code", "expr": "host_name:$host_name environment:$environment service_name:$service_name level:$level | stats by (level) count() logs | sort by (logs desc)", "queryType": "stats", "refId": "A" }],
+      "title": "Log count by level",
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showControls": true, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "direction": "desc", "editorMode": "code", "expr": "host_name:$host_name environment:$environment service_name:$service_name level:in(\"ERROR\",\"error\") | fields _time, host_name, service_name, level, _msg", "maxLines": 100, "queryType": "instant", "refId": "A" }],
+      "title": "Recent errors",
+      "type": "logs"
+    },
+    {
+      "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
+      "gridPos": { "h": 13, "w": 24, "x": 0, "y": 17 },
+      "id": 4,
+      "options": { "dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showControls": true, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true },
+      "targets": [{ "direction": "desc", "editorMode": "code", "expr": "host_name:$host_name environment:$environment service_name:$service_name level:$level | fields _time, host_name, service_name, environment, container_name, level, _msg", "maxLines": 500, "queryType": "instant", "refId": "A" }],
+      "title": "Logs",
+      "type": "logs"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 42,
+  "tags": ["logs", "victorialogs"],
+  "templating": {
+    "list": [
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "includeAll": true, "label": "Host", "multi": true, "name": "host_name", "query": { "field": "host_name", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "includeAll": true, "label": "Environment", "multi": true, "name": "environment", "query": { "field": "environment", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "includeAll": true, "label": "Service", "multi": true, "name": "service_name", "query": { "field": "service_name", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "sort": 1, "type": "query" },
+      { "allValue": "*", "current": { "selected": true, "text": ["All"], "value": ["$__all"] }, "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" }, "includeAll": true, "label": "Level", "multi": true, "name": "level", "query": { "field": "level", "limit": 100, "query": "*", "type": "fieldValue" }, "refresh": 1, "sort": 1, "type": "query" }
+    ]
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": { "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m"] },
+  "timezone": "browser",
+  "title": "Logs Overview",
+  "uid": "logs-overview",
+  "version": 1
+}

@@ -1,14 +1,13 @@
 apiVersion: 1
 
 providers:
-  - name: Dragon Ball Observability
+  - name: Logs Overview
     orgId: 1
-    folder: Dragon Ball
-    folderUid: dragon-ball
+    folder: Logs
+    folderUid: logs
     type: file
     disableDeletion: true
     allowUiUpdates: true
     updateIntervalSeconds: 30
     options:
       path: /etc/grafana/provisioning/dashboards
-      foldersFromFilesStructure: false

@@ -1,0 +1,87 @@
+data_dir: /var/lib/vector
+
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+
+sources:
+  labelled_docker_logs:
+    type: docker_logs
+    docker_host: unix:///var/run/docker.sock
+    include_labels:
+      - logging.enabled=true
+    auto_partial_merge: true
+    retry_backoff_secs: 2
+
+transforms:
+  normalize_application_logs:
+    type: remap
+    inputs: [labelled_docker_logs]
+    drop_on_error: false
+    reroute_dropped: false
+    source: |-
+      original_container_id = .container_id
+      original_container_name = .container_name
+      original_source_type = .source_type
+      label_service = get(.label, ["logging.service"]) ?? "unknown-service"
+      label_environment = get(.label, ["logging.environment"]) ?? "unknown"
+      raw_message = to_string(.message) ?? encode_json(.message)
+
+      parsed, parse_error = parse_json(raw_message)
+      if parse_error == null && is_object(parsed) {
+        . = merge!(., parsed, deep: true)
+      } else {
+        .message = raw_message
+      }
+
+      if !exists(.service_name) || is_null(.service_name) { .service_name = label_service }
+      if !exists(.environment) || is_null(.environment) { .environment = label_environment }
+      .host_name = get_env_var!("HOST_NAME")
+      .container_name = original_container_name
+      .container_id = original_container_id
+      .source_type = original_source_type
+
+      message = to_string(.message) ?? encode_json(.message)
+      message = replace(message, r'(?i)(password|passwd|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;]+', "REDACTED")
+      .message = truncate(message, 65536)
+
+      if exists(.exception) {
+        exception = to_string(.exception) ?? encode_json(.exception)
+        exception = replace(exception, r'(?i)(password|passwd|token|secret|api[_-]?key)\s*[=:]\s*[^\s,;]+', "REDACTED")
+        .exception = truncate(exception, 131072)
+      }
+
+      del(.label)
+      del(.image)
+      del(.container_created_at)
+      del(.stream)
+      del(.host)
+
+sinks:
+  victorialogs:
+    type: elasticsearch
+    inputs: [normalize_application_logs]
+    endpoints: ["${VICTORIALOGS_URL}/insert/elasticsearch/"]
+    mode: bulk
+    api_version: v8
+    compression: gzip
+    query:
+      _msg_field: message
+      _time_field: timestamp
+      _stream_fields: host_name,service_name,environment
+    batch:
+      max_events: 512
+      max_bytes: 4194304
+      timeout_secs: 2
+    request:
+      concurrency: 2
+      timeout_secs: 10
+      retry_attempts: 100
+      retry_initial_backoff_secs: 1
+      retry_max_duration_secs: 30
+    buffer:
+      type: disk
+      max_size: ${VECTOR_BUFFER_SIZE:-268435456}
+      when_full: drop_newest
+    healthcheck:
+      enabled: false

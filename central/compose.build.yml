@@ -1,0 +1,10 @@
+# Optional local-only overlay. Normal deployment pulls the Grafana image with
+# the VictoriaLogs datasource plugin already installed.
+services:
+  grafana:
+    pull_policy: build
+    build:
+      context: ./grafana
+      args:
+        GRAFANA_IMAGE: grafana/grafana:13.1.0
+        VICTORIALOGS_PLUGIN_VERSION: 0.27.1

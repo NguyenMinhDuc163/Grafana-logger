@@ -1,0 +1,77 @@
+name: observability
+
+x-container-logging: &container-logging
+  driver: local
+  options:
+    max-size: "20m"
+    max-file: "3"
+
+services:
+  victorialogs:
+    image: victoriametrics/victoria-logs:v1.52.0
+    command:
+      - -storageDataPath=/victoria-logs-data
+      - -retentionPeriod=${LOG_RETENTION:-3d}
+      - -retention.maxDiskSpaceUsageBytes=${LOG_MAX_DISK:-2GiB}
+      - -search.maxQueryDuration=30s
+      - -search.maxConcurrentRequests=4
+      - -search.maxQueueDuration=10s
+    ports:
+      # Bind only to the private-LAN address of the observability LXC.
+      - "${VICTORIALOGS_BIND_ADDRESS:-127.0.0.1}:${VICTORIALOGS_PORT:-9428}:9428"
+    volumes:
+      - victorialogs-data:/victoria-logs-data
+    restart: unless-stopped
+    cpus: 1.00
+    mem_limit: ${VICTORIALOGS_MEMORY_LIMIT:-1g}
+    mem_reservation: 256m
+    pids_limit: 256
+    logging: *container-logging
+
+  grafana:
+    image: ${GRAFANA_LOGGING_IMAGE:-nguyenduc1603/central-logging:grafana-latest}
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Set GRAFANA_ADMIN_USER in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_LOG_LEVEL: info
+    ports:
+      - "${GRAFANA_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - victorialogs
+    restart: unless-stopped
+    cpus: 0.50
+    mem_limit: ${GRAFANA_MEMORY_LIMIT:-384m}
+    mem_reservation: 128m
+    pids_limit: 256
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging: *container-logging
+
+  beszel:
+    image: henrygd/beszel:0.19.0
+    ports:
+      - "${BESZEL_BIND_ADDRESS:-127.0.0.1}:${BESZEL_PORT:-8090}:8090"
+    volumes:
+      - beszel-data:/beszel_data
+    restart: unless-stopped
+    cpus: 0.25
+    mem_limit: ${BESZEL_MEMORY_LIMIT:-256m}
+    mem_reservation: 64m
+    pids_limit: 128
+    logging: *container-logging
+
+volumes:
+  victorialogs-data:
+  grafana-data:
+  beszel-data:
