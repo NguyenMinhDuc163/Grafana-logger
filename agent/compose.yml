@@ -3,7 +3,9 @@ name: logging-agent
 services:
   vector:
     image: timberio/vector:0.57.0-debian
-    command: ["--config", "/etc/vector/vector.yaml"]
+    # Vector 0.57 disables ${VAR} interpolation by default. This config only
+    # interpolates the private VictoriaLogs URL; it contains no credentials.
+    command: ["--dangerously-allow-env-var-interpolation", "--config", "/etc/vector/vector.yaml"]
     environment:
       HOST_NAME: ${HOST_NAME:?Set HOST_NAME in .env}
       VICTORIALOGS_URL: ${VICTORIALOGS_URL:?Set VICTORIALOGS_URL in .env}
@@ -17,7 +19,7 @@ services:
     mem_reservation: 64m
     pids_limit: 128
     healthcheck:
-      test: ["CMD", "vector", "validate", "--no-environment", "/etc/vector/vector.yaml"]
+      test: ["CMD", "vector", "validate", "--dangerously-allow-env-var-interpolation", "--no-environment", "/etc/vector/vector.yaml"]
       interval: 30s
       timeout: 10s
       retries: 3

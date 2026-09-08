@@ -1,12 +1,11 @@
 # Architecture
 
-`central/` runs on the observability LXC and contains VictoriaLogs, Grafana and
-Beszel Hub. `agent/` runs on each Docker workload host and contains only Vector.
+`central/` runs on the observability LXC and contains VictoriaLogs and Grafana.
+`agent/` runs on each Docker workload host and contains only Vector.
 
 ```text
 Docker containers --(stdout/stderr)--> Vector --(private LAN)--> VictoriaLogs
                                                                --> Grafana
-Proxmox and workload hosts --(Beszel agents)-------------------> Beszel Hub
 ```
 
 Only containers labelled `logging.enabled=true` are collected. Vector adds the

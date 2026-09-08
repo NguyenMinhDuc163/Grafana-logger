@@ -11,8 +11,8 @@ services:
     image: victoriametrics/victoria-logs:v1.52.0
     command:
       - -storageDataPath=/victoria-logs-data
-      - -retentionPeriod=${LOG_RETENTION:-3d}
-      - -retention.maxDiskSpaceUsageBytes=${LOG_MAX_DISK:-2GiB}
+      - -retentionPeriod=${LOG_RETENTION:-2d}
+      - -retention.maxDiskSpaceUsageBytes=${LOG_MAX_DISK:-1GiB}
       - -search.maxQueryDuration=30s
       - -search.maxConcurrentRequests=4
       - -search.maxQueueDuration=10s
@@ -58,20 +58,6 @@ services:
       start_period: 60s
     logging: *container-logging
 
-  beszel:
-    image: henrygd/beszel:0.19.0
-    ports:
-      - "${BESZEL_BIND_ADDRESS:-127.0.0.1}:${BESZEL_PORT:-8090}:8090"
-    volumes:
-      - beszel-data:/beszel_data
-    restart: unless-stopped
-    cpus: 0.25
-    mem_limit: ${BESZEL_MEMORY_LIMIT:-256m}
-    mem_reservation: 64m
-    pids_limit: 128
-    logging: *container-logging
-
 volumes:
   victorialogs-data:
   grafana-data:
-  beszel-data:

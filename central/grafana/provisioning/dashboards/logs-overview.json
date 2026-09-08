@@ -13,13 +13,13 @@
     },
     {
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "fieldConfig": { "defaults": { "color": { "fixedColor": "red", "mode": "fixed" }, "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] } }, "overrides": [] },
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "id": 2,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
-      "targets": [{ "editorMode": "code", "expr": "host_name:$host_name environment:$environment service_name:$service_name level:$level | stats by (level) count() logs | sort by (logs desc)", "queryType": "stats", "refId": "A" }],
-      "title": "Log count by level",
-      "type": "barchart"
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto", "wideLayout": true },
+      "targets": [{ "editorMode": "code", "expr": "host_name:$host_name environment:$environment service_name:$service_name level:in(\"ERROR\",\"error\") | stats count() errors", "queryType": "stats", "refId": "A" }],
+      "title": "Error count",
+      "type": "stat"
     },
     {
       "datasource": { "type": "victoriametrics-logs-datasource", "uid": "victorialogs" },

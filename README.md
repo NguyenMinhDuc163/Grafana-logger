@@ -6,16 +6,15 @@ deploying one lightweight Vector agent rather than another Grafana stack.
 
 ```text
 workload host: Docker -> Vector -> VictoriaLogs <- Grafana : observability LXC
-Proxmox / hosts: Beszel agents ----------------> Beszel Hub : observability LXC
 ```
 
-Grafana is deliberately logs-only here. Beszel handles host and container
-metrics. The central stack keeps logs for three days and caps data at 2 GiB by
-default, which suits a small machine with low log volume.
+This project handles centralized logs only. The central stack keeps logs for two
+days and caps data at 1 GiB by default, which suits a small machine with low
+log volume.
 
 ## Repository layout
 
-- `central/` — VictoriaLogs, Grafana and Beszel Hub; deploy on the observability LXC.
+- `central/` — VictoriaLogs and Grafana; deploy on the observability LXC.
 - `agent/` — Vector only; deploy one copy on every Docker workload host.
 - `docs/` — architecture, deployment and service-onboarding notes.
 
@@ -31,9 +30,9 @@ docker compose pull
 docker compose up -d
 ```
 
-Only permit workload hosts to reach the VictoriaLogs ingestion port (9428). The
-Grafana and Beszel ports bind to loopback by default; publish them through a
-reverse proxy or Cloudflare Tunnel if needed.
+Only permit workload hosts to reach the VictoriaLogs ingestion port (9428).
+Grafana binds to loopback by default; publish it through a reverse proxy or
+Cloudflare Tunnel if needed.
 
 ## Agent deployment
 

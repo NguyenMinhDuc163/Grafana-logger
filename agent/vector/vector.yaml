@@ -36,6 +36,9 @@ transforms:
 
       if !exists(.service_name) || is_null(.service_name) { .service_name = label_service }
       if !exists(.environment) || is_null(.environment) { .environment = label_environment }
+      # A valid JSON log may omit `message`; keep its original line so every
+      # event still has a VictoriaLogs message field.
+      if !exists(.message) || is_null(.message) { .message = raw_message }
       .host_name = get_env_var!("HOST_NAME")
       .container_name = original_container_name
       .container_id = original_container_id
@@ -81,7 +84,8 @@ sinks:
       retry_max_duration_secs: 30
     buffer:
       type: disk
-      max_size: ${VECTOR_BUFFER_SIZE:-268435456}
+      # Vector requires disk buffers to be at least 268435488 bytes (~256 MiB).
+      max_size: 268435488
       when_full: drop_newest
     healthcheck:
       enabled: false

@@ -15,9 +15,9 @@ docker compose pull
 docker compose up -d
 ```
 
-Grafana and Beszel bind to loopback by default. Put a reverse proxy or
-Cloudflare Tunnel in front of them if browser access from another machine is
-required. Do not publish VictoriaLogs to the internet.
+Grafana binds to loopback by default. Put a reverse proxy or Cloudflare Tunnel
+in front of it if browser access from another machine is required. Do not
+publish VictoriaLogs to the internet.
 
 ## Agent on a workload host
 
